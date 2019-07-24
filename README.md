@@ -171,9 +171,74 @@ Docker uses a Union file system to present a series of file system changes as an
 ```
 Show layers of changes made in image.
 
+``` 
+    docker image inspect nginx:latest
+```
+Returns JSON metadata about the image.
+
+``` 
+    docker image tag nginx:latest pwera/nginx:1.0.0
+```
+Tag an image
+
+``` 
+    docker image build . -t myimage
+```
+Build image from Dockerfile
+
+``` 
+    docker image prune
+```
+ Clean up just "dangling" images
+
+``` 
+    docker system prune
+```
+Clean up everything
+
+``` 
+    docker system df
+```
+See space usage
+
+Persistent Data
+Containers are usually immutable and ephemeral
+https://www.oreilly.com/ideas/an-introduction-to-immutable-infrastructure
+Docker volumes are a configuration option for a container that creates a special location outside of that container's union file system to store unique data. This preserves it across container removals and allows us to attach it to whatever container we want. And the container just sees it like a local file path.
+Bind mounts are simply us sharing or mounting a host directory, or file, into a container.
+
+Volumes
+``` Dockerfile:
+    ...
+    VOLUME /var/lib/something
+    ...
+```
+Volumes needs manual deletion.
+
+``` 
+    docker volume ls
+```
+Volumes lives longer then containers.
+
+Named Volumes
+``` 
+    docker container run -d -v myimage-volume:/var/lib/something nginx
+    docker volume ls
+    docker volume inspect myimage-volume
+```
+
+Bind Mounts
+``` 
+   ... run -v ${pwd}:/path/inside/container
+```
+Maps a host file or directory to a container file or directory. Two locations pointing to the same files. 
+Can't use in Dockerfile, must be at container run stage.
+We can define as readonly.
 
 
-(38)
+
+(47)
+
 
 ## Tools & Usage
 - Docker Compose
@@ -185,6 +250,7 @@ Show layers of changes made in image.
 - Envoy
 - Proxy
 - Containerd
+- Storage drivers
 
 
 ## Authors
