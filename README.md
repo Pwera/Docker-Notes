@@ -213,19 +213,27 @@ Volumes
     VOLUME /var/lib/something
     ...
 ```
-Volumes needs manual deletion.
+Volumes needs manual deletion. Use this if data is more important then container.
 
 ``` 
     docker volume ls
 ```
 Volumes lives longer then containers.
 
-Named Volumes
+Named Volumes 
 ``` 
     docker container run -d -v myimage-volume:/var/lib/something nginx
     docker volume ls
     docker volume inspect myimage-volume
 ```
+
+``` 
+   docker volume create psql-data2
+    docker container run -d --rm --name pg1 -v psql-data2:/var/lib/postgresql/data postgres:9.6.1
+    docker container stop pg1
+    docker container run -d --rm --name pg2 -v psql-data2:/var/lib/postgresql/data postgres:9.6.2
+```
+
 
 Bind Mounts
 ``` 
@@ -235,9 +243,35 @@ Maps a host file or directory to a container file or directory. Two locations po
 Can't use in Dockerfile, must be at container run stage.
 We can define as readonly.
 
+``` 
+   docker run --rm --name serv1 -p 80:80 -v ${pwd}:/site bretfisher/jekyll-serve
+```
 
 
-(47)
+
+Docker Compose
+
+``` 
+   version: '3.1'  # if no version is specificed then v1 is assumed. Recommend v2 minimum
+
+services:  # containers. same as docker run
+  servicename: # a friendly name. this is also DNS name inside network
+    image: # Optional if you use build:
+    command: # Optional, replace the default CMD specified by the image
+    environment: # Optional, same as -e in docker run
+    volumes: # Optional, same as -v in docker run
+  servicename2:
+
+volumes: # Optional, same as docker volume create
+
+networks: # Optional, same as docker network create
+```
+
+
+
+
+
+(53)
 
 
 ## Tools & Usage
