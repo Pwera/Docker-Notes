@@ -249,7 +249,11 @@ We can define as readonly.
 
 
 
-Docker Compose
+## Docker Compose
+- Create one-liner developer environment startups.
+- YAML fomratted.
+- CLI tool docker-compose for local and testing purposes.
+- Custom compose file should be used with -f flag.
 
 ``` 
    version: '3.1'  # if no version is specificed then v1 is assumed. Recommend v2 minimum
@@ -268,10 +272,57 @@ networks: # Optional, same as docker network create
 ```
 
 
+``` 
+   version: '3.1'
+
+services:
+  jekyll:
+    image: bretfisher/jekyll-serve
+    volumes:
+      - .:/site
+    ports:
+      - '80:4000'
+```
+
+Compose can build custom images
+
+    
+``` 
+   docker-compose build
+```
+
+``` 
+   version: '3.1'
+
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    ports:
+      - '80:80'
+```
+Build custom image on docker-compose up command with ${folder_name}/proxy name
+
+``` 
+   version: '3.1'
+
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    image: proxxy
+    ports:
+      - '80:80'
+```
+Build custom image on docker-compose up command with proxxy name
+
+## Docker Swarm
 
 
 
-(53)
+(60)
 
 
 ## Tools & Usage
@@ -285,6 +336,7 @@ networks: # Optional, same as docker network create
 - Proxy
 - Containerd
 - Storage drivers
+- tobegit3hub/seagull 
 
 
 ## Authors
