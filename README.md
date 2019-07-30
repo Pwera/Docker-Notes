@@ -319,10 +319,203 @@ services:
 Build custom image on docker-compose up command with proxxy name
 
 ## Docker Swarm
+Swarm is a clustering solution build inside Docker
+Control Plane is how orders get sent around the Swarm.
+A single service can have multiple tasks and each one of those tasks will launch a container.
+``` 
+   docker service create
+```
+ On Manager Node
+- API           Accept command from client and creates service object
+- Orchestrator  Reconcillaion loop for service  objects and create tasks
+- Allocator     Allocates IP addresses to tasks
+- Scheduler     Assign nodes to tasks
+- Dispatcher    Check in on workers
+On Worker node
+- workers       Connects to dispatcher to check on assigned tasks
+- Executor      Executes tasks assigned to worker node
+
+
+``` 
+   docker swarm init
+```
+- Creates Root Signing Certificate created for Swarm
+- Certificate is issued for first Manager node
+- Join tokens are created
+Raft Consensus Database is created to store CA, configs and secrets.
+Protocol to ensure consistency between nodes. I created database on disc, and stores the configuration of the Swarm.
+
+
+``` 
+   docker node ls
+```
+Docker node ## can promote workers to managers and demoting them.
+
+``` 
+   docker service create slpine ping 8.8.8.8
+```
+Returns service ID, with one replica and random name.
+
+``` 
+   docker service ps <service_name>
+```
+Can see which node was applied.
+
+``` 
+   docker serivce update <id> --replicas 3
+```
+Scalle up to 3 replicas.
+
+
+``` 
+   docker update
+```
+Allow to update certain variable on running container without kill or restart
+
+
+``` 
+   docker service rm <service_name>
+   docker container ls
+```
+Removing service
+
+
+Creating multinode Swarm
+``` 
+    1) node1: docker swarm init 
+
+    2) node1: docker swarm init --advertise-addr <IP>
+
+    3) [Copy generated command, and paste in other machine]
+    node2: docker swarm join --token <TOKEN> <IP>
+    After that this node is a part of swarm as worker
+
+    4) node1: docker node ls
+
+    5) node2: docker node ls
+    Command won't work, because docker worker aren't privalage don't have access to controll swarm.
+
+    6) node1: docker node update --role manager node2
+    * node thats we currentyly taliking to
+
+    7) node1: docker node ls
+    node is considered [MANAGER STATUS] as Reachable
+
+    8) [Add node3 add as manager by default]
+    [Copy generated command, and paste in node3]
+    node1: docker swarm join-token manager
+    We can get token at any time, don't need to story anywhere
+
+    9) node3: docker swarm join --token <TOKEN> <IP>
+
+    10) node1: docker service create --replicas 3 alpine ping 8.8.8.8
+
+    11) node1:  docker node ps
+    node1: docker node ps node2
+
+    12) node1: docker service ps <service_name>
+```
+
+## Scalling Out with Overlay Networking
+ 
+New networking Swarm driver: overlay
+
+``` 
+   docker network create --driver overlay
+```
+Swarm wide bridge network, where containers accros hosts on same virt network can access each other
+optional IPSec (AES) encryption, off by default
+Each service can be conected to multiple networks
+
+``` 
+   node1: docker network create --driver overlay my_network
+   node1: docker network ls
+   node1: docker service create --name psql --network my_network -e POSTGRES_PASSWORD=example postgres
+   node1: docker service ls 
+   node1: docker service ps psql
+   node1: dokcer container logs psql..
+   docker service create --name drupal -p 80:80 --network my_net drupal
+```
+Overlay network acts as like everything's on the same subnet.
+
+## Swarm Routing Mesh, global trafiic router 
+Incoming ingress network that distribute packets for service to the tasks fot that service.
+Span all nodes in Swarm, uses IPVS from Linux Kernel.
+Load balancing across all the nodes and listening on all the nodes for traffic.
+
+If we have 3 nodes with 2 replicas, every node has built-in load balancer on thier external IP address. 
+Any traffic that comes in to any of these three nodes hits load balancer on published port, then Load Balancer decides which container should get traffic and whether or not that traffic is on local node, or it needs to send the traffic over the network, to a different node. 
+In swarm we can only use overlay network.
+
+``` 
+   docker service create --name seach  --replicas 3 -p 9200:9200 elasticsearch:2
+   curl localhost:9200
+```
+Routing mesh 17.0.3 routing mesh i load balancer are stateles balancer.
+LB is at OSI Layer 3 (TCP)
+Nginx or HAProxy  LB proxy, statfull balancer- allows caching.
+
+% Creating voting app %
+``` 
+   docker network create --driver overlay frontend
+   docker network create --driver overlay backend
+   docker network volume create volume1
+
+   docker service create --name worker  --network backend --network frontend dockersamples/examplevotingapp_worker
+   
+   docker service create --name redis --network frontend redis:3.2
+
+   docker service create --name db --network backend --mount type=volume,source=volume1,target=/var/lib/postgresql/data postgres:9.4
+
+   docker service create --name vote --replicas 2 -p 80:80 --network frontend dockersamples/examplevotingapp_vote:before
+
+   docker service create --name result --replicas 1 --network backend dockersamples/examplevotingapp_result:before
+
+
+   docker service logs worker
+   docker service logs result
+```
+
+## Stacks - Compose files for production Swarm
+
+``` 
+   docker stack deploy
+```
+Stacks manages all those objects for us , including overlay network per stack. Adds stack name to start of their name.
+
+``` 
+   new deploy: key in compose file
+```
+Can't do build using Stack.
+On local compose ignores deployinformation.  
+Swarm on production ignores build.
+
+``` 
+   docker stack deploy -c compose-stack.yml voteapp
+```
+Version 3+ is needed in compose in order to use Stacks.
+
+``` 
+   docker stack ps voteapp
+```
+
+
+``` 
+   docker stack services voteapp
+```
+
+## Secrets Storage
 
 
 
-(60)
+``` 
+   .
+```
+
+``` 
+   .
+```
+(69)
 
 
 ## Tools & Usage
@@ -337,6 +530,7 @@ Build custom image on docker-compose up command with proxxy name
 - Containerd
 - Storage drivers
 - tobegit3hub/seagull 
+- dockersamples/visualizer
 
 
 ## Authors
