@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  falco:
+    image: sysdig/falco:dev
+    ports:
+      - '10084:80'
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - /dev:/host/dev
+      - /proc:/host/proc
+      - /boot:/host/boot
+      - /lib/modules:/host/lib/modules
+      - /usr:/host/usr
+
