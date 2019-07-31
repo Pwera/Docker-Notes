@@ -506,16 +506,94 @@ Version 3+ is needed in compose in order to use Stacks.
 
 ## Secrets Storage
 
-
+Secrets are first stored in Swarm , then assigned to a service(s).
+Only containers in assigned Service(s) can see them.
+Secrets depends on swarm.
+Supports generic strings or binary content up to 500Kb in size.
 
 ``` 
-   .
+    docker secret create XXX abc.txt
+    docker secret ls
+
+    echo "myPassword" | docker secret create create XXX -
+    docker secret inspect XXX
+
+    docker service create --name pgsql --secret XXX --secret pg_user -e POSTGRES_PASSWORD_FILE=/run/secrets/XXX
 ```
 
 ``` 
-   .
+   docker service update --secret-rm
 ```
-(69)
+Removing secret, redeploy container.
+
+
+``` 
+    version: "3.1"
+
+    services:
+      psql:
+        image: postgres
+        secrets:
+          - psql_user
+          - psql_password
+        environment:
+          POSTGRES_PASSWORD_FILE: /run/secrets/psql_password
+          POSTGRES_USER_FILE: /run/secrets/psql_user
+
+    secrets:
+      psql_user:
+        file: ./psql_user.txt
+      psql_password:
+        file: ./psql_password.txt
+
+
+```
+Version has to be 3.1 in order to se secrets with Stack.
+``` 
+   docker stack deploy -c compose.yml <service_name>
+```
+Use secrets with Swarm Stacks.
+
+``` 
+   docker service update --image myapp:1.2.1 <service_name>
+```
+Update image to a newer version. 
+
+``` 
+   docker service update --env-add NODE=producion --publish-rm 8080 <service_name>
+```
+Update environmental variable & remove published port.
+
+``` 
+   docker service scale web=8 api=6
+```
+Changing number of replicas. Can apply to number of services.
+
+
+``` 
+   docker service update --publish-rm 8080 --publish-radd 8992 <service_name>
+```
+"Update" port number of service.
+
+``` 
+   docker service update --force <service_name>
+```
+Replace the tasks.
+
+``` 
+   
+```
+Healthchecks are supported in Dockerfile, Compose YAML, docker run and Swarm Services.
+Docker engine will exec's the command in the container - like curl localhost.
+Three container states: starting, healthy, unhealthy.
+
+
+
+``` 
+   
+```
+
+(78)
 
 
 ## Tools & Usage
