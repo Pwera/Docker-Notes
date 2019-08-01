@@ -586,14 +586,53 @@ Replace the tasks.
 Healthchecks are supported in Dockerfile, Compose YAML, docker run and Swarm Services.
 Docker engine will exec's the command in the container - like curl localhost.
 Three container states: starting, healthy, unhealthy.
+Services will replace tasks if they fail healthcheck.
 
+``` 
+       docker run \
+       --health-cmd="curl -f localhost:9200/_cluster/health || false" \
+       --health-interval=5s \
+       --health-retries=3 \
+       --health-timeout=2s \
+       --health-start-period=15s \
+       elasticsearch:2
+```
+Perform healthcheck on existing image that doesn't have healtcheck in it.
+
+``` 
+   version: "2.1"
+   services:
+      web:
+      image: nginx
+      healthcheck:
+        test: ["CMD", "curl", "-f","http://localhost"]
+        interval: 1m30s
+        timeout: 10s
+        retries: 3
+        start_period: 1m
+```
+Healthcheck in Compose file.
+
+``` 
+     docker container run --name pg -d --health-cmd="pg_isready -U postgres || exit 1" postgres && docker container ls
+```
+Healthcheck with docker run command.
+
+``` 
+    docker service create --name pg --health-cmd="pg_isready -U postgres" postgres     
+```
+Healthcheck with swarm service command.
 
 
 ``` 
-   
+    .
 ```
 
-(78)
+``` 
+    .
+```
+
+(80)
 
 
 ## Tools & Usage
