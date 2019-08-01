@@ -623,16 +623,49 @@ Healthcheck with docker run command.
 ```
 Healthcheck with swarm service command.
 
+``` 
+    docker container run -d -p 5000:5000 --name registry registry
+
+```
+Run registry image
 
 ``` 
-    .
+    docker tag hello-world 127.0.0.1:5000/hello-world
+    docker push 127.0.0.1:5000/hello-world
+```
+Re-tag an existing image an push it to new registry
+
+``` 
+    docker image remove hello-world
+    docker image remove  127.0.0.1:5000/hello-world
+    docker pull 127.0.0.1:5000/hello-world
+```
+Remove image from local cache and oull from new repository
+
+Web UI's:
+``` 
+    docker run -d -p 10086:10086 -v /var/run/docker.sock:/var/run/docker.sock tobegit3hub/seagull
 ```
 
 ``` 
-    .
+    docker run -dit -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock dockersamples/visualizer
 ```
 
-(80)
+``` 
+    docker run -dti --restart always --name container-web-tty \
+    -p 8080:8080 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    wrfly/container-web-tty
+```
+
+``` 
+     docker run -dti --restart always --name portainer \
+    -p 8080:8080 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    portainer/portainer
+```
+
+(96)
 
 
 ## Tools & Usage
@@ -646,8 +679,6 @@ Healthcheck with swarm service command.
 - Proxy
 - Containerd
 - Storage drivers
-- tobegit3hub/seagull 
-- dockersamples/visualizer
 
 
 ## Authors
