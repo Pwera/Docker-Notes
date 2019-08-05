@@ -646,10 +646,12 @@ Web UI's:
 ``` 
     docker run -d -p 10086:10086 -v /var/run/docker.sock:/var/run/docker.sock tobegit3hub/seagull
 ```
+Seagull
 
 ``` 
     docker run -dit -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock dockersamples/visualizer
 ```
+Visualizer
 
 ``` 
     docker run -dti --restart always --name container-web-tty \
@@ -657,6 +659,7 @@ Web UI's:
     -v /var/run/docker.sock:/var/run/docker.sock \
     wrfly/container-web-tty
 ```
+Container-web-tty
 
 ``` 
      docker run -dti --restart always --name portainer \
@@ -664,8 +667,15 @@ Web UI's:
     -v /var/run/docker.sock:/var/run/docker.sock \
     portainer/portainer
 ```
+Portainer
 
-(96)
+``` 
+     docker run -d -p 8080:8080 -p 80:80 \
+    -v $PWD/traefik.toml:/etc/traefik/traefik.toml traefik:v2.0
+```
+Traefik
+
+Instead of using wget in Dockerfile, we can ADD command  (docker internal tool to downlaod file). 
 
 
 ## Tools & Usage
@@ -679,6 +689,7 @@ Web UI's:
 - Proxy
 - Containerd
 - Storage drivers
+- Autopilot Pattern Applications
 
 
 ## Authors
