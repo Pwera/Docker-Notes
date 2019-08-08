@@ -11,7 +11,7 @@ Notes & code & tools for Docker
 - Docker's default image registry is dockerhub.
 - Containers only run as long as the command that it ran on startup run. Default command is defined in Dockerfile.
 - Image is the application binaries and dependencies for app and the metadata on how to run it. Image is an ordered collection of root filesystem changes and the corresponding execution parameters for use within a container runtime. Image is not complete OS, no kernel, kernel modules (e.g. drivers).
--  
+- Docker use linux containers, which is a kernel feature for operating systems level isolation. The reason why containers cannot go to the whole system or to oter contianers, or you   don't see information of other containers is because of this isolation done on a kernel level.
 
 
 ## Commands
@@ -690,6 +690,7 @@ Instead of using wget in Dockerfile, we can ADD command  (docker internal tool t
 - Containerd
 - Storage drivers
 - Autopilot Pattern Applications
+- Alternative to Docker is Rkt
 
 
 ## Authors
