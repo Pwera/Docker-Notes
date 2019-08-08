@@ -21,3 +21,5 @@ RUN code-server --install-extension peterjausovec.vscode-docker  && \
     code-server --install-extension ms-vscode.cpptools && \
     code-server --install-extension premparihar.gotestexplorer
 RUN    code-server -N
+
+#docker image build . -t developementubuntu && docker container run -it --rm --name ub -p 8443:8443 developementubuntu bash
