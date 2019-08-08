@@ -1,26 +1,49 @@
-FROM ubuntu
+# Maintained by Piotr Wera, piotr.wera@vp.pl
 
-RUN apt-get update 
-RUN apt-get install wget -y && wget http://archive.apache.org/dist/mesos/1.8.0/mesos-1.8.0.tar.gz 
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.15.0/cmake-3.15.0-Linux-x86_64.tar.gz && tar -xzf cmake-3.15.0-Linux-x86_64.tar.gz && cd cmake-3.15.0-Linux-x86_64 && cp * /usr/ -R
-RUN apt-get install git -y
+FROM ubuntu:18.04
+
+# VARIABLES
+
+ARG CMAKE_VERSION=3.15.0
+ARG CMAKE_FILE=cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz
+ARG CMAKE_LINK=https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_FILE}
+ARG NINJA_VERSION=1.9.0
+ARG NINJA_FILE=ninja-linux.zip
+ARG NINJA_LINK=https://github.com/ninja-build/ninja/releases/download/v${NINJA_VERSION}/${NINJA_FILE}
+ARG GO_VERSION=1.12.6
+ARG GO_FILE=go${GO_VERSION}.linux-amd64.tar.gz
+ARG GO_LINK=https://dl.google.com/go/${GO_FILE}
+ARG CS_VERSION=1.33.1
+ARG CS_FILE=code-server1.1156-vsc${CS_VERSION}-linux-x64.tar.gz
+ARG CS_LINK=https://github.com/cdr/code-server/releases/download/1.1156-vsc${CS_VERSION}/${CS_FILE}
+
+# PACKAGES
+
 RUN apt-get update
-RUN apt-get install gcc g++ ninja-build build-essential libsasl2-dev libapr1-dev libsvn-dev -y 
-RUN git clone --recursive --single-branch --progress https://github.com/apache/mesos
-RUN apt-get update
-RUN apt-get install  libcurl4-openssl-dev libz-dev -y
-RUN cd mesos && mkdir build && cd build && cmake -G"Unix Makefiles" ..
-RUN cd mesos && cd build && cmake --build . --target leveldb-1.19
-RUN cd mesos && cd build && cmake --build . --target protobuf-3.5.0 -- -j4
-RUN cd mesos && cd build && cmake --build . --target boost-1.65.0
-RUN cd mesos && cd build && cmake --build . --target zookeeper-3.4.8 -- -j4
-RUN cd mesos && cd build && cmake --build . --target googletest-1.8.0 -- -j4
-RUN cd mesos && cd build && cmake --build . --target glog-0.4.0 -- -j4
-RUN cd mesos && cd build && cmake --build . --target libev-4.22 -- -j4
-RUN cd mesos && cd build && cmake --build . --target grpc-1.10.0 -- -j4
-RUN cd mesos && cd build && cmake --build . --target mesos-protobufs -- -j4
-RUN cd mesos && cd build && cmake --build . --target process -- -j4
+RUN apt install -y wget git unzip g++ libz-dev && \
+    wget ${CMAKE_LINK} && tar -C /usr/local -xzf ${CMAKE_FILE} --strip-components=1 && rm ${CMAKE_FILE} && \
+    wget ${NINJA_LINK} && unzip ${NINJA_FILE} && mv ninja /usr/local/bin && rm ${NINJA_FILE} && \
+    wget ${GO_LINK} && tar -C /usr/local -xzf ${GO_FILE} && rm ${GO_FILE} && \
+    wget ${CS_LINK} && tar -C /bin/ -xzf ${CS_FILE} --strip-components=1 && rm ${CS_FILE} && \
+    code-server --install-extension peterjausovec.vscode-docker  && \
+    code-server --install-extension ms-vscode.go && \
+    code-server --install-extension vector-of-bool.cmake-tools && \
+    code-server --install-extension redhat.vscode-yaml && \
+    code-server --install-extension ms-vscode.cpptools && \
+    code-server --install-extension premparihar.gotestexplorer
 
-#RUN cd mesos && cd build && cmake --build . --target help
+#RUN go get -v github.com/mdempsky/gocode && go get -v github.com/uudashr/gopkgs/cmd/gopkgs    
 
-RUN cd mesos && cd build && cmake --build . --target mesos
+
+# ENVIRONMENTAL VARS
+ENV PATH=${PATH}:/usr/local/go/bin
+
+
+
+
+
+# COMMENTS 
+# RUN code-server -N
+# docker image build . -t developementubuntu && docker container run -it --rm --name ub -p 8443:8443 developementubuntu bash
+# RUN git clone --single-branch --recursive https://github.com/protocolbuffers/protobuf 
+# RUN cd /protobuf && cd cmake && mkdir build && cd build && cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF  ..  && cmake --build . && cmake --build . --target install
