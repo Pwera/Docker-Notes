@@ -6,4 +6,4 @@ FROM pwera/development-ubuntu:latest
 
 RUN apt-get install git -y && git clone --recursive https://github.com/apache/mesos
 RUN apt-get install build-essential libsasl2-dev libapr1-dev libsvn-dev libcurl4-openssl-dev -y 
-RUN cd mesos && mkdir build && cd build && cmake -GNinja ..
+RUN cd mesos && mkdir build && cd build && cmake -GNinja .. && cmake --build .
