@@ -16,6 +16,10 @@ ARG GO_LINK=https://dl.google.com/go/${GO_FILE}
 ARG CS_VERSION=1.39.2
 ARG CS_FILE=code-server2.1692-vsc${CS_VERSION}-linux-x86_64.tar.gz
 ARG CS_LINK=https://github.com/cdr/code-server/releases/download/2.1692-vsc${CS_VERSION}/${CS_FILE}
+ARG RUST_VERSION=1.40.0
+ARG RUST_DIR=rust-${RUST_VERSION}-x86_64-unknown-linux-gnu
+ARG RUST_FILE=${RUST_DIR}.tar.gz
+ARG RUST_LINK=https://static.rust-lang.org/dist/${RUST_FILE}
 
 # PACKAGES
 
@@ -25,7 +29,9 @@ RUN apt install -y wget git unzip g++ libz-dev && \
     wget ${NINJA_LINK} && unzip ${NINJA_FILE} && mv ninja /usr/local/bin && rm ${NINJA_FILE} && \
     wget ${GO_LINK} && tar -C /usr/local -xzf ${GO_FILE} && rm ${GO_FILE} && \
     wget ${CS_LINK} && tar -C /bin/ -xzf ${CS_FILE} --strip-components=1 && rm ${CS_FILE} && \
-    wget https://packages.ubuntu.com/bionic/curl && chmod +x curl && mv curl /usr/local/bin
+    wget https://packages.ubuntu.com/bionic/curl && chmod +x curl && mv curl /usr/local/bin && \
+    wget ${RUST_LINK} && tar -xzf ${RUST_FILE} && cd ${RUST_DIR} && ./install.sh && rm -rf ../${RUST_DIR} && rm ../${RUST_FILE}
+    
     
 RUN code-server --install-extension peterjausovec.vscode-docker  && \
     code-server --install-extension ms-vscode.go && \
@@ -49,6 +55,7 @@ RUN go get -v github.com/ramya-rao-a/go-outline     && \
 	go get -v github.com/go-delve/delve/cmd/dlv
 
 
+    
 # COMMENTS 
 # docker image build . -t developementubuntu && docker container run -it --rm --name ub -p 8080:8080 developementubuntu bash
 # RUN git clone --single-branch --recursive https://github.com/protocolbuffers/protobuf 
