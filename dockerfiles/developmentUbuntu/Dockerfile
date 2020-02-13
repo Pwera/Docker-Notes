@@ -16,21 +16,16 @@ ARG GO_LINK=https://dl.google.com/go/${GO_FILE}
 ARG CS_VERSION=1.39.2
 ARG CS_FILE=code-server2.1692-vsc${CS_VERSION}-linux-x86_64.tar.gz
 ARG CS_LINK=https://github.com/cdr/code-server/releases/download/2.1692-vsc${CS_VERSION}/${CS_FILE}
-ARG RUST_VERSION=1.41.0
-ARG RUST_DIR=rust-${RUST_VERSION}-x86_64-unknown-linux-gnu
-ARG RUST_FILE=${RUST_DIR}.tar.gz
-ARG RUST_LINK=https://static.rust-lang.org/dist/${RUST_FILE}
 
 # PACKAGES
 
 RUN apt-get update
-RUN apt install -y wget git unzip g++ libz-dev && \
+RUN apt install -y wget git unzip g++ libz-dev curl && \
     wget ${CMAKE_LINK} && tar -C /usr/local -xzf ${CMAKE_FILE} --strip-components=1 && rm ${CMAKE_FILE} && \
     wget ${NINJA_LINK} && unzip ${NINJA_FILE} && mv ninja /usr/local/bin && rm ${NINJA_FILE} && \
     wget ${GO_LINK} && tar -C /usr/local -xzf ${GO_FILE} && rm ${GO_FILE} && \
     wget ${CS_LINK} && tar -C /bin/ -xzf ${CS_FILE} --strip-components=1 && rm ${CS_FILE} && \
-    wget https://packages.ubuntu.com/bionic/curl && chmod +x curl && mv curl /usr/local/bin && \
-    wget ${RUST_LINK} && tar -xzf ${RUST_FILE} && cd ${RUST_DIR} && ./install.sh && rm -rf ../${RUST_DIR} && rm ../${RUST_FILE}
+    curl https://sh.rustup.rs -sSf | sh -s -- --profile complete -y | echo "ok"
     
     
 RUN code-server --install-extension peterjausovec.vscode-docker  && \
@@ -46,6 +41,7 @@ RUN mkdir /home/go
 ENV PATH=${PATH}:/usr/local/go/bin
 ENV GOPATH=/home/go
 ENV GOROOT=/usr/local/go
+ENV PATH=${PATH}:/root/.cargo/bin
 
 RUN go get -v github.com/ramya-rao-a/go-outline     && \
     go get -v github.com/mdempsky/gocode            && \
