@@ -53,6 +53,6 @@ RUN go get -v github.com/ramya-rao-a/go-outline     && \
 
     
 # COMMENTS 
-# docker image build . -t developementubuntu && docker container run -it --rm --name ub -p 8080:8080 developementubuntu bash
+# docker image build . -t developementubuntu && docker container run -it --rm -v /var/run/docker.sock:/var/run/docker.sock --name ub -p 8080:8080 developementubuntu bash
 # RUN git clone --single-branch --recursive https://github.com/protocolbuffers/protobuf 
 # RUN cd /protobuf && cd cmake && mkdir build && cd build && cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF  ..  && cmake --build . && cmake --build . --target install
