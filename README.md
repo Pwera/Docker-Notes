@@ -11,18 +11,27 @@ Notes & code & tools for Docker
 - Docker's default image registry is dockerhub.
 - Containers only run as long as the command that it ran on startup run. Default command is defined in Dockerfile.
 - Image is the application binaries and dependencies for app and the metadata on how to run it. Image is an ordered collection of root filesystem changes and the corresponding execution parameters for use within a container runtime. Image is not complete OS, no kernel, kernel modules (e.g. drivers).
-- Docker use linux containers, which is a kernel feature for operating systems level isolation. The reason why containers cannot go to the whole system or to oter contianers, or you   don't see information of other containers is because of this isolation done on a kernel level.
+- Containers use Linux security primitives such as Linux kernel namespaces to sandbox different applications running on the same computers 
+and control groups (cgroups) in order to avoid the noisy-neighbor problem, where one bad application is using all the available resources of a server and starving all other applications.
+Containers are only possible due to the fact that the Linux OS provides some primitives, such as namespaces, control groups, layer capabilities, 
+and more, all of which are leveraged in a very specific way by the container runtime and the Docker engine. 
+
+- Linux kernel namespaces, such as process ID (pid) namespaces or network (net) namespaces, allow Docker to encapsulate or sandbox processes that run inside the container. 
+
+- Control Groups make sure that containers cannot suffer from the noisy-neighbor syndrome, where a single application running in a container 
+can consume most or all of the available resources of the whole Docker host. 
+Control Groups allow Docker to limit the resources, such as CPU time or the amount of RAM, that each container is allocated.
 
 
 ## Commands
 ``` 
-    docker version 
+docker version 
 ``` 
 ``` 
-    docker info
+docker info
 ``` 
 ``` 
-    docker container run --publish 80:80 nginx
+docker container run --publish 80:80 nginx
 ```
 In the background docker engine looked for an image called nginx, and pulled down the latest image from Docker hub, and then it started as a new process in a new container.
 Give a virtual IP on a private network inside docker engine.
@@ -31,68 +40,73 @@ from it to executable on port 80.
 Static IP's and using IP's for talking to containers is an anti-pattern.
 
 ``` 
-    docker container run --publish 80:80 --detach nginx
+docker container run --publish 80:80 --detach nginx
 ``` 
 Detach tells Docker to run container in the background
 
 ``` 
-    docker container ls
+docker container ls
 ``` 
 Running container status
 ``` 
-    docker container ls -a
+docker container ls -a
 ``` 
 All container status
 ``` 
-    docker container start ...
+docker container start ...
 ``` 
 Start existing stopped container
 ``` 
-    docker container run --publish 80:80 --detach --name nginx nginx
+docker container run --publish 80:80 --detach --name nginx nginx
 ``` 
 Set name for container
 ``` 
-    docker container logs nginx
+docker container logs nginx
 ``` 
 Container logs
 ``` 
-    docker container top nginx
+docker container top nginx
 ``` 
 Procesess inside container
 ``` 
-    docker container rm nginx
+docker container rm nginx
 ```
 Remove stopped containers.
 ``` 
-    docker container rm -f nginx
+docker container rm -f nginx
 ```
 Remove containers.
 ``` 
-    docker run --name mongo 
-    docker container top mongo ( ps -aux | grep mongo )
+docker run --name mongo 
+docker container top mongo ( ps -aux | grep mongo )
 ```
 List of running processes in specific container.
 
 ``` 
-    docker container inspect <container>
+docker container inspect <container>
 ```
 Details of one container config.
 
 ``` 
-    docker container inspect --format '{{ .NetworkSettings.IPAddress }}' webhost
+docker container inspect --format '{{ .NetworkSettings.IPAddress }}' webhost
 ```
 IPAddress of one container.
 
 ``` 
-    docker container stats (optional <container>)
+docker container inspect -f "{{json .State}}" trivia | jq .
+``` 
+Print formatted state of the cointainer.
+
+``` 
+docker container stats (optional <container>)
 ```
 Performance stats for all containers in realtime stream.
 
 ``` 
-    docker container run -it <container>
+docker container run -it <container>
 ```
 Run new container interactively.
--t pseudo-tty, simulates a real terminal like ssh
+-t pseudo-tty(teletypewriter), simulates a real terminal like ssh
 -i interactive, keep session open to receive terminal input
 
 ``` 
@@ -100,9 +114,38 @@ Run new container interactively.
 ```
 Run additional command in existing container.
 
+## Single-Host Network
+Docker has defined a very simple
+networking model, the so-called container network model (CNM), to specify the
+requirements that any software that implements a container network has to fulfill.
+
+This network implementation is based on the Linux bridge.
+When the Docker daemon runs for the first time, it creates a Linux bridge and calls
+it docker0.
+Docker then creates a network with this Linux bridge and calls the network bridge. All the
+containers that we create on a Docker host and that we do not explicitly bind to another
+network leads to Docker automatically attaching to this bridge network.
+
+IP address management (IPAM) block. IPAM is a
+piece of software that is used to track IP addresses that are used on a computer. The
+important part of the IPAM block is the Config node with its values for Subnet and
+Gateway. The subnet for the bridge network is defined by default as 172.17.0.0/16. This
+means that all containers attached to this network will get an IP address assigned by
+Docker that is taken from the given range, which is 172.17.0.2 to
+172.17.255.255. The 172.17.0.1 address is reserved for the router of this network
+whose role in this type of network is taken by the Linux bridge. We can expect that the very
+first container that will be attached to this network by Docker will get
+the 172.17.0.2 address
+
+By default, only egress traffic is allowed, and all ingress is blocked. What this means is
+that while containerized applications can reach the internet, they cannot be reached by any
+outside traffic. Each container attached to the network gets its own virtual ethernet (veth)
+connection with the bridge. 
+
+
 ``` 
-    docker container run -p 80:80 --name webhost -d <container>
-    docker container port webhost
+docker container run -p 80:80 --name webhost -d <container>
+docker container port webhost
 ```
 What ports are open in container.
 Each container connect to a private virtual network "bridge", and that virtual network is automatically attached to Ethernet interface on host.
@@ -111,35 +154,35 @@ All containers on a virtual network can talk to each other without -p.
 Use different Docker network drivers to gain new abilities.
 
 ``` 
-    docker network ls
+docker network ls
 ```
 Show networks
 
 ``` 
-    docker network inspect 
+docker network inspect 
 ```
 Inspect a network
 
 ``` 
-    docker network create --driver
+docker network create --driver
 ```
 Create a network with optional driver.
 
 ``` 
-    docker network connect
-    docker network disconnect
+docker network connect
+docker network disconnect
 ```
 Attach and detach a network to/from on running container.
 Bridge network is default docker virtual network, which is NAT'ed behind the host IP.
 Host network is faster by skipping virtual networks but sacrifices security of container model.
 Netork driver is build-in or 3rd party extension that give you virtual network features.
 ``` 
-    docker network create my_network
-    docker container run -d --name nginx --network my_network nginx
-    docker network inspect my_network
-    docker network connect old_nginx
-    docker network inspect my_network
-    docker network inspect bridge
+docker network create my_network
+docker container run -d --name nginx --network my_network nginx
+docker network inspect my_network
+docker network connect old_nginx
+docker network inspect my_network
+docker network inspect bridge
 ```
 old_nginx is now attached into two networks.
 
@@ -149,105 +192,239 @@ Containers in the same virtuall network can talk with its name.
 Docker defaults the hostname to the container's name but we can set aliases.
 
 ``` 
-    docker network create my_network
-    docker container run -it --rm --name nginx_old --network my_network nginx:alpine
-    docker container run -it --rm --name new_nginx --network my_network nginx:alpine ping  nginx_old    
+docker network create my_network
+docker container run -it --rm --name nginx_old --network my_network nginx:alpine
+docker container run -it --rm --name new_nginx --network my_network nginx:alpine ping  nginx_old    
 ```
 
 DNS Round Robin
 
 ``` 
-    docker container run -d --rm --name el1 --network my_network --network-alias search elasticsearch:2
-    docker container run -d --rm --name el2 --network my_network --network-alias search elasticsearch:2
-    docker container run -it --rm --name alpine1 --net my_network  nginx:alpine ping search:9200
-    docker container run -it --rm --name centos1 --net my_network centos curl -s search:9200
-    docker container run -it --rm --name alpine2 --net my_network  alpine nslookup search
+docker container run -d --rm --name el1 --network my_network --network-alias search elasticsearch:2
+docker container run -d --rm --name el2 --network my_network --network-alias search elasticsearch:2
+docker container run -it --rm --name alpine1 --net my_network  nginx:alpine ping search:9200
+docker container run -it --rm --name centos1 --net my_network centos curl -s search:9200
+docker container run -it --rm --name alpine2 --net my_network  alpine nslookup search
 ```
 
+```
+docker network create --driver bridge --subnet "10.1.0.0/16" test-net
+```
+specify our own subnet range when creating a network
 
+## Images
 Docker uses a Union file system to present a series of file system changes as an actual file system.
 ``` 
-    docker history nginx:latest
+docker history nginx:latest
 ```
 Show layers of changes made in image.
 
 ``` 
-    docker image inspect nginx:latest
+docker image inspect nginx:latest
 ```
 Returns JSON metadata about the image.
 
 ``` 
-    docker image tag nginx:latest pwera/nginx:1.0.0
+docker image tag nginx:latest pwera/nginx:1.0.0
 ```
 Tag an image
 
 ``` 
-    docker image build . -t myimage
+docker image build . -t myimage
 ```
 Build image from Dockerfile
 
 ``` 
-    docker image prune
+docker image prune
 ```
  Clean up just "dangling" images
 
 ``` 
-    docker system prune
+docker system prune
 ```
 Clean up everything
 
 ``` 
-    docker system df
+docker system df
 ```
 See space usage
 
-Persistent Data
+
+```
+docker container diff sample
+```
+If we want to see what has changed in our container in relation to the base image.
+
+```
+docker container run --name test -it --log-driver none busybox sh -c 'for N in 1 2 3; do echo "Hello $N"; done'
+```
+Docker supports several different graph drivers using a pluggable architecture. The preferred driver is overlay2, followed by overlay.
+
+
+`FROM` scratch is a no-op in the Dockerfile, and as such does not generate a layer in the resulting container image.
+
+`ADD` keyword also lets us copy and unpack TAR files, as well as providing a URL as a source for the files and folders to copy.
+
+From a security perspective, it is important to know that, by default, all files and folders inside the image will have a user ID (UID) and a group ID (GID) of 0. 
+The good thing is that for both `ADD` and `COPY`, we can change the ownership that the files will have inside the image using the optional --chown flag, as follows
+
+```ADD --chown=11:22 ./data/web* /app/data/```
+
+The `CMD` and `ENTRYPOINT` keywords are special. 
+While all other keywords defined for a Dockerfile are executed at the time the image is built by the Docker builder, these two are actually definitions of what will happen when a container is started from the image we define
+
+```
+docker container run --rm -it --entrypoint /bin/sh pinger
+```
+Override what's defined in the `ENTRYPOINT`
+
+If you leave `ENTRYPOINT` undefined, then it will have the default value of /bin/sh -c, and whatever the value of `CMD` is will be passed as a string to the shell command.
+
+```
+docker container run --rm -it --env-file ./development.config alpine sh -c "export"
+ ```
+ Override Environmentals.
+
+```
+$ docker image build \    
+--build-arg BASE_IMAGE_VERSION=12.7-alpine \    
+-t my-node-app-test .
+```
+ Override Dockerfile arguments.
+
+ ```
+docker container run --rm -it \
+-v $(pwd):/usr/src/app \
+-w /usr/src/app \
+perl:slim sh -c "cat sample.txt | perl -lpe 's/^\s*//'"
+```
+Remove spaces from file, using perl
+
+```
+docker container run --rm \
+ --name shellinabox \
+ -p 4200:4200 \
+ -e SIAB_USER=gnschenker \
+ -e SIAB_PASSWORD=top-secret \
+ -e SIAB_SUDO=true \
+ -v `pwd`/dev:/usr/src/dev \
+ sspreitzer/shellinabox:latest
+ ```
+ Running terminal in a remote container and accessing it via HTTPS
+
+``` 
+docker container run --tty -d \
+ --name billing \
+ --read-only \
+ alpine /bin/sh
+ ```
+Set read-only filesystem.
+
+```
+docker container ps -a \
+--format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+```
+Print formatted Name Image & Status.
+
+```
+docker image build -t my-centos -f Dockerfile .
+```
+Sending build context to Docker daemon 2.048kB
+The first thing the builder does is package the files in the current build context, excluding the files and folder mentioned in the .dockerignore file (if present), and sends the resulting .tar file to the Docker daemon.
+
+```
+FROM alpine:3.7 AS build
+RUN apk update && \    
+apk add --update alpine-sdk
+RUN mkdir /appWORKDIR /app
+COPY . /appRUN mkdir bin
+RUN gcc hello.c -o bin/hello 
+FROM alpine:3.7COPY --from=build /app/bin/hello /app/helloCMD /app/hello
+```
+Multistage build. In this case it's a reduction in size by a factor of 40. A smaller image has many advantages, such as a smaller attack surface area for hackers, reduced memory and disk consumption, faster startup times of the corresponding containers, and a reduction of the bandwidth needed to download the image from a registry, such as Docker Hub.
+
+```
+-v /var/run/docker.sock:/var/run/docker.sock
+```
+Mounting the Docker socket into the container, so Docker can be accessed from within the container. Docker socket into the builder, the Docker commands act on the host.
+It is important to note that here we are not talking about running the
+Docker Engine inside the container but rather only the Docker CLI and
+bind-mount the Docker socket from the host into the container so that the
+CLI can communicate with the Docker Engine running on the host
+computer. This is an important distinction. Running the Docker Engine
+inside a container, although possible, is not recommended.
+
+```
+docker image ls --filter dangling=false --filter "reference=*/*/*:latest"
+```
+Filter only outputs images that are not dangling, that is, real images whose
+fully qualified name is of the form <registry>/<user|org><repository>:<tag>, and
+the tag is equal to latest.
+
+```
+ docker container run --rm -it \
+ --name stress-test \
+ --memory 512M \
+ ubuntu:19.04 /bin/bash
+ apt-get update && apt-get install -y stress
+ stress -m 4
+ ```
+ Limiting resources consumed by a container
+possibility of limiting the resources a single container can consume at. This includes
+CPU and memory consumption. Use stress to simulate four workers, which try to malloc() memory in blocks of 256MB.
+In the Terminal running Docker stats, observe how the value for MEM USAGE approaches
+but never exceeds LIMIT. This is exactly the behavior we expected from Docker. Docker
+uses Linux cgroups to enforce those limits.
+
+## Persistent Data
 Containers are usually immutable and ephemeral
 https://www.oreilly.com/ideas/an-introduction-to-immutable-infrastructure
 Docker volumes are a configuration option for a container that creates a special location outside of that container's union file system to store unique data. This preserves it across container removals and allows us to attach it to whatever container we want. And the container just sees it like a local file path.
-Bind mounts are simply us sharing or mounting a host directory, or file, into a container.
+Bind mounts are simply us sharing or mounting a host directory, or file, into a container. 
+ 
+The default volume driver is the so-called local driver, which stores the data locally in the host filesystem.
 
 Volumes
 ``` Dockerfile:
-    ...
-    VOLUME /var/lib/something
-    ...
+...
+VOLUME /var/lib/something
+...
 ```
 Volumes needs manual deletion. Use this if data is more important then container.
 
 ``` 
-    docker volume ls
+docker volume ls
 ```
 Volumes lives longer then containers.
 
 Named Volumes 
 ``` 
-    docker container run -d -v myimage-volume:/var/lib/something nginx
-    docker volume ls
-    docker volume inspect myimage-volume
+docker container run -d -v myimage-volume:/var/lib/something nginx
+docker volume ls
+docker volume inspect myimage-volume
 ```
+The content that is already there is replaced by the content of the host folder.
+
 
 ``` 
-   docker volume create psql-data2
-    docker container run -d --rm --name pg1 -v psql-data2:/var/lib/postgresql/data postgres:9.6.1
-    docker container stop pg1
-    docker container run -d --rm --name pg2 -v psql-data2:/var/lib/postgresql/data postgres:9.6.2
+docker volume create psql-data2
+docker container run -d --rm --name pg1 -v psql-data2:/var/lib/postgresql/data postgres:9.6.1
+docker container stop pg1
+docker container run -d --rm --name pg2 -v psql-data2:/var/lib/postgresql/data postgres:9.6.2
 ```
 
 
 Bind Mounts
 ``` 
-   ... run -v ${pwd}:/path/inside/container
+... run -v ${pwd}:/path/inside/container
 ```
 Maps a host file or directory to a container file or directory. Two locations pointing to the same files. 
 Can't use in Dockerfile, must be at container run stage.
 We can define as readonly.
 
 ``` 
-   docker run --rm --name serv1 -p 80:80 -v ${pwd}:/site bretfisher/jekyll-serve
+docker run --rm --name serv1 -p 80:80 -v ${pwd}:/site bretfisher/jekyll-serve
 ```
-
-
 
 ## Docker Compose
 - Create one-liner developer environment startups.
@@ -288,7 +465,7 @@ Compose can build custom images
 
     
 ``` 
-   docker-compose build
+docker-compose build
 ```
 
 ``` 
@@ -323,7 +500,7 @@ Swarm is a clustering solution build inside Docker
 Control Plane is how orders get sent around the Swarm.
 A single service can have multiple tasks and each one of those tasks will launch a container.
 ``` 
-   docker service create
+docker service create
 ```
  On Manager Node
 - API           Accept command from client and creates service object
@@ -337,7 +514,7 @@ On Worker node
 
 
 ``` 
-   docker swarm init
+docker swarm init
 ```
 - Creates Root Signing Certificate created for Swarm
 - Certificate is issued for first Manager node
@@ -347,35 +524,35 @@ Protocol to ensure consistency between nodes. I created database on disc, and st
 
 
 ``` 
-   docker node ls
+docker node ls
 ```
 Docker node ## can promote workers to managers and demoting them.
 
 ``` 
-   docker service create slpine ping 8.8.8.8
+docker service create slpine ping 8.8.8.8
 ```
 Returns service ID, with one replica and random name.
 
 ``` 
-   docker service ps <service_name>
+docker service ps <service_name>
 ```
 Can see which node was applied.
 
 ``` 
-   docker serivce update <id> --replicas 3
+docker serivce update <id> --replicas 3
 ```
 Scalle up to 3 replicas.
 
 
 ``` 
-   docker update
+docker update
 ```
 Allow to update certain variable on running container without kill or restart
 
 
 ``` 
-   docker service rm <service_name>
-   docker container ls
+docker service rm <service_name>
+docker container ls
 ```
 Removing service
 
@@ -390,30 +567,30 @@ Creating multinode Swarm
     node2: docker swarm join --token <TOKEN> <IP>
     After that this node is a part of swarm as worker
 
-    4) node1: docker node ls
+    1) node1: docker node ls
 
-    5) node2: docker node ls
+    2) node2: docker node ls
     Command won't work, because docker worker aren't privalage don't have access to controll swarm.
 
-    6) node1: docker node update --role manager node2
+    1) node1: docker node update --role manager node2
     * node thats we currentyly taliking to
 
-    7) node1: docker node ls
+    1) node1: docker node ls
     node is considered [MANAGER STATUS] as Reachable
 
-    8) [Add node3 add as manager by default]
+    1) [Add node3 add as manager by default]
     [Copy generated command, and paste in node3]
     node1: docker swarm join-token manager
     We can get token at any time, don't need to story anywhere
 
-    9) node3: docker swarm join --token <TOKEN> <IP>
+    1) node3: docker swarm join --token <TOKEN> <IP>
 
-    10) node1: docker service create --replicas 3 alpine ping 8.8.8.8
+    2)  node1: docker service create --replicas 3 alpine ping 8.8.8.8
 
-    11) node1:  docker node ps
+    3)  node1:  docker node ps
     node1: docker node ps node2
 
-    12) node1: docker service ps <service_name>
+    1)  node1: docker service ps <service_name>
 ```
 
 ## Scalling Out with Overlay Networking
@@ -421,7 +598,7 @@ Creating multinode Swarm
 New networking Swarm driver: overlay
 
 ``` 
-   docker network create --driver overlay
+docker network create --driver overlay
 ```
 Swarm wide bridge network, where containers accros hosts on same virt network can access each other
 optional IPSec (AES) encryption, off by default
