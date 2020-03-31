@@ -376,6 +376,31 @@ In the Terminal running Docker stats, observe how the value for MEM USAGE approa
 but never exceeds LIMIT. This is exactly the behavior we expected from Docker. Docker
 uses Linux cgroups to enforce those limits.
 
+
+```
+docker container run --rm -it --network none alpine:latest /bin/sh
+```
+
+Sometimes, we need to run a few application services or jobs that do not need any network
+connection at all to execute the task at hand. It is strongly advised that you run those
+applications in a container that is attached to the none network. This container will be
+completely isolated, and is thus safe from any outside access.
+
+```
+docker container run --name web -P -d nginx:alpine
+```
+We can let Docker decide which host port our container port shall be
+mapped to. Docker will then select one of the free host ports in the range of
+32xxx. This automatic mapping is done by using the `-P` parameter
+
+When using the UDP protocol for communication over a certain port, the publish
+parameter will look like `-p 3000:4321/udp`. Note that if we want to allow communication with both `TCP` and `UDP` protocols over the same port, then we have to map each protocol separately.
+
+There is an important difference between running two containers attached to the same network and two containers running in the same network namespace. In both cases, the containers can freely communicate with each other, but in the latter case, the communication happens over localhost.
+The container has its own virtual network stack, as does the host. Therefore, container ports and host ports exist completely independently and by default have nothing in common at all.
+
+
+
 ## Persistent Data
 Containers are usually immutable and ephemeral
 https://www.oreilly.com/ideas/an-introduction-to-immutable-infrastructure
@@ -495,8 +520,71 @@ services:
 ```
 Build custom image on docker-compose up command with proxxy name
 
+```
+docker-compose config
+```
+
+Command docker-compose config shows how compose will look with the variables filled in.
+
+```
+docker-compose -f docker-compose.yml -f docker-compose-ci.yml up -d --
+build
+```
+Using Compose overrides.
+
+
 ## Docker Swarm
-Swarm is a clustering solution build inside Docker
+An orchestrator is an infrastructure software that is used to run and manage containerized applications in a cluster while making sure that these applications are in their desired state at all times. 
+
+The tasks of an orchestrator:
+- Reconciling the desired state
+- Replicated and global services
+- Service discovery
+- Routing
+- Load balancing
+- Scaling
+- Self-healing
+- Zero downtime deployments
+- Affinity and location awareness
+- Security
+- Role-based access control (RBAC)
+- Secrets
+- Content trust
+
+The architecture of a Docker Swarm from a 30,000-foot view consists of two main parts—a raft consensus group of an odd number of manager nodes, and a group of worker nodes that communicate with each other over a gossip network, also called the control plane.
+
+There are two quite different types of services that we might want to run in a cluster that is
+managed by an orchestrator. They are replicated and global services. A replicated service is a
+service that is required to run in a specific number of instances, say 10. A global service, in
+turn, is a service that is required to have exactly one instance running on every single
+worker node of the cluster. I have used the term worker node here. In a cluster that is
+managed by an orchestrator, we typically have two types of nodes, managers and workers.
+A manager node is usually exclusively used by the orchestrator to manage the cluster and
+does not run any other workload. Worker nodes, in turn, run the actual applications.
+So, the orchestrator makes sure that, for a global service, an instance of it is running on
+every single worker node, no matter how many there are. We do not need to care about the
+number of instances, but only that on each node, it is guaranteed to run a single instance of
+the service.
+Once again, we can fully rely on the orchestrator to handle this. In a replicated service, we
+will always be guaranteed to find the exact desired number of instances, while for a global
+service, we can be assured that on every worker node, there will always run exactly one
+instance of the service. The orchestrator will always work as hard as it can to guarantee this
+desired state.
+
+`In Kubernetes, a global service is also called a DaemonSet.`
+
+Each Docker Swarm needs to include at least one manager node. For high availability reasons, we should have more than one manager node in a Swarm. This is especially true for production or production-like environments. If we have more than one manager node, then these nodes work together using the Raft consensus protocol. The `Raft` consensus protocol is a standard protocol that is often used when multiple entities need to work together and always need to agree with each other as to which activity to execute next.
+
+The manager nodes are not only responsible for managing the Swarm but also for
+maintaining the state of the Swarm. What do we mean by that? When we talk about the state of the Swarm we mean all of the information about it—for example, how many nodes are in the Swarm and what are the properties of each node, such as name or IP address. We also mean what containers are running on which node in the Swarm and more. What, on the other hand, is not included in the state of the Swarm is data produced by the application services running in containers on the Swarm. This is called application data and is definitely not part of the state that is managed by the manager nodes.
+
+All of the Swarm states are stored in a high-performance key-value store (kv-store) on each manager node. That's right, each manager node stores a complete replica of the whole Swarm state. This redundancy makes the Swarm highly available. If a manager node goes down, the remaining managers all have the complete state at hand.
+
+Worker nodes communicate with each other over the so-called control plane. They use the gossip protocol for their communication. This communication is asynchronous, which means that, at any given time, it is likely that not all worker nodes are in perfect sync. 
+
+It is mostly information that is needed for service discovery and routing, that is, information about which containers are running on with nodes and more
+
+`Swarm` is a clustering solution build inside Docker
 Control Plane is how orders get sent around the Swarm.
 A single service can have multiple tasks and each one of those tasks will launch a container.
 ``` 
@@ -512,6 +600,20 @@ On Worker node
 - workers       Connects to dispatcher to check on assigned tasks
 - Executor      Executes tasks assigned to worker node
 
+### Services
+A Swarm service is an abstract thing. It is a description of the desired state of an application
+or application service that we want to run in a Swarm. The Swarm service is like a manifest
+describing such things as the following:
+Name of the service
+Image from which to create the containers
+Number of replicas to run
+Network(s) that the containers of the service are attached to
+Ports that should be mapped
+
+### Task
+Service corresponds to a description of the desired state in which an application service should be at all times. Part of that description was the number of replicas the service should be running. Each replica is represented by a task. In this regard,
+a Swarm service contains a collection of tasks. On Docker Swarm, a task is the atomic unit of deployment. Each task of a service is deployed by the Swarm scheduler to a worker node. The task contains all of the necessary information that the worker node needs to run a
+container based on the image, which is part of the service description. Between a task and a container, there is a one-to-one relation. The container is the instance that runs on the worker node, while the task is the description of this container as a part of a Swarm service.
 
 ``` 
 docker swarm init
@@ -653,7 +755,12 @@ Nginx or HAProxy  LB proxy, statfull balancer- allows caching.
    docker service logs result
 ```
 
-## Stacks - Compose files for production Swarm
+### Stacks - Compose files for production Swarm
+
+A stack is used to describe a collection of Swarm services that are
+related, most probably because they are part of the same application.
+`Overlay` network allows
+containers attached to the same overlay network to discover each other and freely communicate with each other.
 
 ``` 
    docker stack deploy
@@ -682,6 +789,11 @@ Version 3+ is needed in compose in order to use Stacks.
 ```
 
 ## Secrets Storage
+
+Secrets can be created by authorized or trusted
+personnel. The values of those secrets are then encrypted and stored in the highly available cluster state database. The secrets, since they are encrypted, are now secure at rest. Once a secret is requested by an authorized application service, the secret is only forwarded to the
+cluster nodes that actually run an instance of that particular service, and the secret value is never stored on the node but mounted into the container in a tmpfs RAM-based volume.
+Only inside the respective container is the secret value available in clear text
 
 Secrets are first stored in Swarm , then assigned to a service(s).
 Only containers in assigned Service(s) can see them.
