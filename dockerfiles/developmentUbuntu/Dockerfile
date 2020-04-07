@@ -28,8 +28,7 @@ RUN apt install -y wget git unzip g++ libz-dev curl && \
     curl https://sh.rustup.rs -sSf | sh -s -- --profile complete -y | echo "ok"
     
     
-RUN code-server --install-extension peterjausovec.vscode-docker  && \
-    code-server --install-extension ms-vscode.go && \
+RUN code-server --install-extension ms-vscode.go && \
     code-server --install-extension redhat.vscode-yaml && \
     code-server --install-extension ms-vscode.cpptools && \
     code-server --install-extension premparihar.gotestexplorer && \
@@ -55,4 +54,4 @@ RUN go get -v github.com/ramya-rao-a/go-outline     && \
 # COMMENTS 
 # docker image build . -t developementubuntu && docker container run -it --rm -v /var/run/docker.sock:/var/run/docker.sock --name ub -p 8080:8080 developementubuntu bash
 # RUN git clone --single-branch --recursive https://github.com/protocolbuffers/protobuf 
-# RUN cd /protobuf && cd cmake && mkdir build && cd build && cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF  ..  && cmake --build . && cmake --build . --target install
+# RUN cd /protobuf && cd cmake && mkdir build && cd build && cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF  ..  && cmake --build . && cmake --build . --target instal
