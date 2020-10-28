@@ -1,0 +1,13 @@
+ gogs:
+    image: gogs/gogs
+    container_name: gogs-service
+    ports:
+    - "10022:22"
+    - "10080:3000"
+    volumes:
+    - /var/gogs:/data
+    labels:
+    - "traefik.enable=true"
+    - "traefik.port=3000"
+    - "traefik.priority=2"
+    - "traefik.http.routers.router2.rule=Host(`ABC:10080`)"

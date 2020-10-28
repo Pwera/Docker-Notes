@@ -1,0 +1,60 @@
+version: "3.7"
+services:
+
+   whoami:
+    image: containous/whoami
+    container_name: "whoami"
+    hostname: "whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.whoami.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/whoami`)"
+      
+
+   nginx:
+    image: nginx:latest
+    container_name: nginx
+    hostname: nginx
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.entrypoints=web"
+      - "traefik.http.routers.nginx.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/hello`)"
+
+#   mynode:
+#    image: mynode
+#    container_name: mynode
+#    hostname: mynode
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.port=3000"
+#      - "traefik.http.routers.mynode.rule=Host(`$MY_DOMAIN`)"
+
+   traefik:
+    image: traefik:v2.1
+    hostname: traefik
+    container_name: traefik
+    ports:
+    - "8081:8080"
+    - "80:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/traefik.yml:ro"
+  
+   jaeger:
+    image: jaegertracing/all-in-one:latest
+    hostname: jaeger
+    container_name: jaeger
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.port=16686"
+      - "traefik.http.routers.jaeger.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/jaeger`)"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+   
+#networks:
+#  default:
+#    external:
+#      name: $DEFAULT_NETWORK
