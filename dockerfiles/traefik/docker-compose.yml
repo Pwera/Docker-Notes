@@ -1,60 +1,275 @@
 version: "3.7"
-services:
 
+services:
    whoami:
     image: containous/whoami
     container_name: "whoami"
-    hostname: "whoami"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.entrypoints=web"
-      - "traefik.http.routers.whoami.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/whoami`)"
-      
+      ### whoami router
+      traefik.enable: true
+      traefik.http.routers.whoami.entrypoints: web
+      traefik.http.routers.whoami.rule: Host(`whoami.$MY_DOMAIN`)
+      ### https-redirect middleware
+      traefik.http.routers.whoami.middlewares: traefik-https-redirect
+      ### whoami-secure router
+      traefik.http.routers.whoami-secure.entrypoints: websecure
+      traefik.http.routers.whoami-secure.rule: Host(`whoami.$MY_DOMAIN`)
+      traefik.http.routers.whoami-secure.tls: true
+      traefik.http.routers.whoami-secure.tls.certresolver: web
+    networks:
+      - web
+    depends_on:
+      - traefik
 
    nginx:
     image: nginx:latest
-    container_name: nginx
-    hostname: nginx
+    container_name: "nginx"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.nginx.entrypoints=web"
-      - "traefik.http.routers.nginx.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/hello`)"
-
-#   mynode:
-#    image: mynode
-#    container_name: mynode
-#    hostname: mynode
-#    labels:
-#      - "traefik.enable=true"
-#      - "traefik.port=3000"
-#      - "traefik.http.routers.mynode.rule=Host(`$MY_DOMAIN`)"
+      ### nginx router      
+      traefik.enable: true
+      traefik.http.routers.nginx.entrypoints: web
+      traefik.http.routers.nginx.rule: Host(`hello.$MY_DOMAIN`)
+      ### https-redirect middleware
+      traefik.http.routers.nginx.middlewares: traefik-https-redirect
+      ### nginx-secure router
+      traefik.http.routers.nginx-secure.entrypoints: websecure
+      traefik.http.routers.nginx-secure.rule: Host(`hello.$MY_DOMAIN`)
+      traefik.http.routers.nginx-secure.tls: true
+      traefik.http.routers.nginx-secure.tls.certresolver: web
+    volumes:
+      - "./index.html:/usr/share/nginx/html/index.html:ro"
+    networks:
+      - web
+    depends_on:
+      - traefik
 
    traefik:
-    image: traefik:v2.1
+    image: traefik:v2.2.1
     hostname: traefik
     container_name: traefik
+    command:
+      - "--accesslog=true"
+      - "--accesslog.filepath=access.log"
+      - "--accesslog.bufferingsize=100"
+      - "--log.level=ERROR"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443" 
+      - "--certificatesresolvers.web.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.web.acme.email=piotr.wera.mail@gmail.com"
+      - "--certificatesresolvers.web.acme.storage=acme.json"
+      - "--tracing.jaeger=true"
+      - "--tracing.jaeger.samplingServerURL=http://jaeger:5778/sampling"
+      - "--tracing.jaeger.localAgentHostPort=jaeger:6831"
+      #- "--tracing.zipkin=true"
+      #- "--tracing.zipkin.httpEndpoint=http://zipkin:9411/api/v2/spans"
     ports:
-    - "8081:8080"
     - "80:80"
+    - "443:443"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./traefik.yml:/traefik.yml:ro"
-  
+      - "./usersfile:/data/usersfile:ro"
+      - "./acme.json:/acme.json"
+    networks:
+      - web
+    labels:
+      ### traefik router    
+      traefik.enable: true
+      traefik.http.routers.api.rule: Host(`traefik.$MY_DOMAIN`)
+      traefik.http.routers.api.service: api@internal
+      ### basicauth middleware
+      traefik.http.routers.traefik.middlewares: traefik-auth
+      traefik.http.routers.traefik-secure.middlewares: traefik-auth
+      traefik.http.middlewares.traefik-auth.basicauth.usersfile: /data/usersfile
+      ### https-redirect middleware
+      traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme: https
+      traefik.http.routers.traefik.middlewares: traefik-https-redirect
+          ### nginx-secure router
+      traefik.http.routers.traefik-secure.entrypoints: websecure
+      traefik.http.routers.traefik-secure.rule: Host(`traefik.$MY_DOMAIN`)
+      traefik.http.routers.traefik-secure.tls: true
+      traefik.http.routers.traefik-secure.tls.certresolver: web
+      traefik.http.routers.traefik-secure.service: api@internal
+
    jaeger:
     image: jaegertracing/all-in-one:latest
-    hostname: jaeger
     container_name: jaeger
     ports:
+      - "5775:5775/udp"
       - "6831:6831/udp"
-      - "16686:16686"
+      - "6832:6832/udp"
+      - "5778:5778"
+   #   - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
     labels:
-      - "traefik.enable=true"
-      - "traefik.port=16686"
-      - "traefik.http.routers.jaeger.rule=Host(`$MY_DOMAIN`) && PathPrefix(`/jaeger`)"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      ### jaeger service
+      traefik.http.services.jaeger.loadbalancer.server.port: 16686
+      traefik.http.routers.jaeger.service: jaeger
+      ### jaeger router
+      traefik.enable: true
+      traefik.http.routers.jaeger.entrypoints: web
+      traefik.http.routers.jaeger.rule: Host(`jaeger.$MY_DOMAIN`)
+      ### jaeger-secure router
+      traefik.http.routers.jaeger-secure.entrypoints: websecure
+      traefik.http.routers.jaeger-secure.rule: Host(`jaeger.$MY_DOMAIN`)
+      traefik.http.routers.jaeger-secure.tls: true
+      traefik.http.routers.jaeger-secure.tls.certresolver: web
+      ### basicauth middleware
+      traefik.http.routers.jaeger.middlewares: traefik-auth
+      traefik.http.routers.jaeger-secure.middlewares: traefik-auth
+      ### https-redirect middleware
+      traefik.http.routers.jaeger.middlewares: traefik-https-redirect
+    networks:
+      - web
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+    depends_on:
+      - traefik
+
+   hotrod:
+     image: jaegertracing/example-hotrod:1.17
+     command: all
+     container_name: hotrod
+     labels:
+       ### hotrod service
+       traefik.http.routers.hotrod.service: hotrod
+       traefik.http.services.hotrod.loadbalancer.server.port: 8080
+       ### hotrod router
+       traefik.enable: true
+       traefik.http.routers.hotrod.entrypoints: web
+       traefik.http.routers.hotrod.rule: Host(`hot.$MY_DOMAIN`)
+       ### basicauth middleware
+       traefik.http.routers.hotrod.middlewares: traefik-auth
+       traefik.http.routers.hotrod-secure.middlewares: traefik-auth
+       ### https-redirect middleware
+       traefik.http.routers.hotrod.middlewares: traefik-https-redirect
+       ### hotrod-secure router
+       traefik.http.routers.hotrod-secure.entrypoints: websecure
+       traefik.http.routers.hotrod-secure.rule: Host(`hot.$MY_DOMAIN`)
+       traefik.http.routers.hotrod-secure.tls: true
+       traefik.http.routers.hotrod-secure.tls.certresolver: web
+     environment:
+       JAEGER_AGENT_HOST: "jaeger"
+       JAEGER_AGENT_PORT: "6831"
+     networks:
+       - web
+     depends_on:
+       - traefik
+       - jaeger
+
+   zipkin:
+     image: openzipkin/zipkin-slim
+     container_name: "zipkin"
+     labels:
+       ### zipkin service
+       traefik.http.services.zipkin.loadbalancer.server.port: 9411
+       traefik.http.routers.zipkin.service: zipkin
+       ### zipkin router
+       traefik.enable: true
+       traefik.http.routers.zipkin.entrypoints: web
+       traefik.http.routers.zipkin.rule: Host(`zipkin.$MY_DOMAIN`)
+       ### basicauth middleware
+       traefik.http.routers.zipkin.middlewares: traefik-auth
+       traefik.http.routers.zipkin-secure.middlewares: traefik-auth
+       ### https-redirect middleware
+       traefik.http.routers.zipkin.middlewares: traefik-https-redirect
+       ### zipkin-secure router
+       traefik.http.routers.zipkin-secure.entrypoints: websecure
+       traefik.http.routers.zipkin-secure.rule: Host(`zipkin.$MY_DOMAIN`)
+       traefik.http.routers.zipkin-secure.tls: true
+       traefik.http.routers.zipkin-secure.tls.certresolver: web
+     networks:
+       - web
+ #    ports:
+ #      - "9411:9411"
+     depends_on:
+       - traefik
    
-#networks:
-#  default:
-#    external:
-#      name: $DEFAULT_NETWORK
+   code-server:
+     image: codercom/code-server:latest
+     container_name: "code"
+     labels:
+       ### code router
+       traefik.enable: true
+       traefik.http.routers.code.entrypoints: web
+       traefik.http.routers.code.rule: Host(`code.$MY_DOMAIN`)
+       ### basicauth middleware
+       traefik.http.routers.code.middlewares: traefik-auth
+       traefik.http.routers.code-secure.middlewares: traefik-auth
+       ### https-redirect middleware
+       traefik.http.routers.code.middlewares: traefik-https-redirect
+       ### code-secure router
+       traefik.http.routers.code-secure.entrypoints: websecure
+       traefik.http.routers.code-secure.rule: Host(`code.$MY_DOMAIN`)
+       traefik.http.routers.code-secure.tls: true
+       traefik.http.routers.code-secure.tls.certresolver: web
+     networks:
+       - web
+     depends_on:
+       - traefik
+
+   portainer:
+     image: portainer/portainer
+     container_name: portainer
+     volumes:
+       - /var/run/docker.sock:/var/run/docker.sock:ro
+       - portainer_data:/data
+     labels:
+       ### portainer router
+       traefik.enable: true
+       traefik.http.routers.portainer.entrypoints: web
+       traefik.http.routers.portainer.rule: Host(`portainer.$MY_DOMAIN`)
+       ### basicauth middleware
+       traefik.http.routers.portainer.middlewares: traefik-auth
+       traefik.http.routers.portainer-secure.middlewares: traefik-auth
+       ### https-redirect middleware
+       traefik.http.routers.portainer.middlewares: traefik-https-redirect
+       ### portainer-secure router
+       traefik.http.routers.portainer-secure.entrypoints: websecure
+       traefik.http.routers.portainer-secure.rule: Host(`portainer.$MY_DOMAIN`)
+       traefik.http.routers.portainer-secure.tls: true
+       traefik.http.routers.portainer-secure.tls.certresolver: web
+     networks:
+       - web
+     depends_on:
+       - traefik
+
+   gogs:
+     image: gogs/gogs
+     container_name: gogs
+     ports:
+       - "10022:22"
+    # volumes:
+    #   - /var/gogs:/data
+     labels:
+       ### gogs service
+       traefik.http.services.gogs.loadbalancer.server.port: 3000
+       traefik.http.routers.gogs.service: gogs
+       ### gogs router
+       traefik.enable: true
+       traefik.http.routers.gogs.entrypoints: web
+       traefik.http.routers.gogs.rule: Host(`git.$MY_DOMAIN`)
+       ### basicauth middleware
+       traefik.http.routers.gogs.middlewares: traefik-auth
+       traefik.http.routers.gogs-secure.middlewares: traefik-auth
+       ### https-redirect middleware
+       traefik.http.routers.gogs.middlewares: traefik-https-redirect
+       ### gogs-secure router
+       traefik.http.routers.gogs-secure.entrypoints: websecure
+       traefik.http.routers.gogs-secure.rule: Host(`git.$MY_DOMAIN`)
+       traefik.http.routers.gogs-secure.tls: true
+       traefik.http.routers.gogs-secure.tls.certresolver: web
+     depends_on:
+       - traefik
+
+
+networks:
+   web:
+    external: true
+
+volumes:
+  portainer_data:
